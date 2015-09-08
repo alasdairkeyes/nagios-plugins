@@ -65,6 +65,7 @@ double cload[3] = { 0.0, 0.0, 0.0 };
 
 char *status_line;
 int take_into_account_cpus = 0;
+int ignore_old_load = 0;
 
 static void
 get_threshold(char *arg, double *th)
@@ -205,6 +206,12 @@ main (int argc, char **argv)
 		else if(la[i] > wload[i]) result = STATE_WARNING;
 	}
 
+    /* la1 is OK, so even if the others are warning/critical report OK */
+    if((ignore_old_load == 1) && (la[0] < wload[0])) {
+        result = STATE_OK;
+    }
+
+
 	printf("%s - %s|", state_text(result), status_line);
 	for(i = 0; i < 3; i++)
 		printf("load%d=%.3f;%.3f;%.3f;0; ", nums[i], la[i], wload[i], cload[i]);
@@ -225,6 +232,7 @@ process_arguments (int argc, char **argv)
 		{"warning", required_argument, 0, 'w'},
 		{"critical", required_argument, 0, 'c'},
 		{"percpu", no_argument, 0, 'r'},
+		{"ignore-old-load", no_argument, 0, 'i'},
 		{"version", no_argument, 0, 'V'},
 		{"help", no_argument, 0, 'h'},
 		{0, 0, 0, 0}
@@ -234,7 +242,7 @@ process_arguments (int argc, char **argv)
 		return ERROR;
 
 	while (1) {
-		c = getopt_long (argc, argv, "Vhrc:w:", longopts, &option);
+		c = getopt_long (argc, argv, "Vhric:w:", longopts, &option);
 
 		if (c == -1 || c == EOF)
 			break;
@@ -248,6 +256,9 @@ process_arguments (int argc, char **argv)
 			break;
 		case 'r': /* Divide load average by number of CPUs */
 			take_into_account_cpus = 1;
+			break;
+		case 'i': /* Ignore load spikes */
+			ignore_old_load = 1;
 			break;
 		case 'V':									/* version */
 			print_revision (progname, NP_VERSION);
@@ -324,6 +335,9 @@ print_help (void)
   printf ("    %s\n", _("the load average format is the same used by \"uptime\" and \"w\""));
   printf (" %s\n", "-r, --percpu");
   printf ("    %s\n", _("Divide the load averages by the number of CPUs (when possible)"));
+  printf (" %s\n", "-i, --ignore-old-load");
+  printf ("    %s\n", _("If 1 minute load average is OK but any others are warning/critcal, report OK still."));
+  printf ("    %s\n", _("Useful to restrict alerts if your system spiked high for 5 and/or 15 averages but is now OK"));
 
 	printf (UT_SUPPORT);
 }
@@ -332,5 +346,5 @@ void
 print_usage (void)
 {
   printf ("%s\n", _("Usage:"));
-	printf ("%s [-r] -w WLOAD1,WLOAD5,WLOAD15 -c CLOAD1,CLOAD5,CLOAD15\n", progname);
+	printf ("%s [-r] [-i] -w WLOAD1,WLOAD5,WLOAD15 -c CLOAD1,CLOAD5,CLOAD15\n", progname);
 }
